@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Yearly Expense Tracker Calendar</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* TOP BUTTON BAR */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      background: white;
+      padding: 10px;
+      border-bottom: 2px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 50;
+    }
+
+    .top-bar button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .save-btn {
+      background: green;
+      color: white;
+    }
+
+    .undo-btn {
+      background: orange;
+      color: white;
+    }
+
+    /* LEFT SIDE CALENDAR */
+    .calendar-container {
+      width: 70%;
+      overflow-y: auto;
+      padding: 15px;
+      background: #f5f5f5;
+    }
+
+    .month {
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0px 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .month-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .month-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .month-total {
+      font-weight: bold;
+      color: green;
+      font-size: 14px;
+    }
+
+    .graph-btn {
+      padding: 6px 10px;
+      background: #222;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      border: none;
+    }
+
+    .graph-btn:hover {
+      background: #444;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    .day-name {
+      font-weight: bold;
+      text-align: center;
+      padding: 6px;
+      background: #ddd;
+      border-radius: 5px;
+      font-size: 13px;
+    }
+
+    /* SMALLER BOX SIZE */
+    .day {
+      background: #fff;
+      padding: 6px;
+      text-align: center;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      font-size: 13px;
+      min-height: 45px;
+      position: relative;
+    }
+
+    .day:hover {
+      background: #e0f7ff;
+    }
+
+    .day.marked {
+      background: #ffeaa7;
+      border: 2px solid orange;
+    }
+
+    .day.selected {
+      border: 2px solid blue;
+    }
+
+    .day-total-inside {
+      font-size: 11px;
+      color: green;
+      font-weight: bold;
+      position: absolute;
+      bottom: 3px;
+      right: 4px;
+    }
+
+    .empty {
+      background: transparent;
+      border: none;
+      cursor: default;
+    }
+
+    /* RIGHT SIDE PANEL */
+    .panel {
+      width: 30%;
+      border-left: 2px solid #ccc;
+      padding: 15px;
+      background: white;
+      overflow-y: auto;
+    }
+
+    .panel h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+    }
+
+    .input-row {
+      display: contents;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    .expense-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .expense-table th, .expense-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    .expense-table th {
+      background: #f2f2f2;
+    }
+
+    .delete-btn {
+      background: red;
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+      border: none;
+    }
+
+    .day-total {
+      font-weight: bold;
+      margin-top: 10px;
+      color: green;
+      font-size: 16px;
+    }
+
+    .year-total {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 20px;
+      color: darkgreen;
+    }
+
+    /* GRAPH MODAL */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 900px;
+      position: relative;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: bold;
+      color: red;
+    }
+
+    .graph-toggle {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+    }
+
+    .graph-toggle button {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .toggle-active {
+      background: #007bff;
+      color: white;
+    }
+
+    .toggle-inactive {
+      background: #ddd;
+      color: black;
+    }
+
+    /* MOBILE RESPONSIVE */
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+        height: auto;
+      }
+
+      .calendar-container {
+        width: 100%;
+        height: 60vh;
+      }
+
+      .panel {
+        width: 100%;
+        height: 40vh;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="calendar-container">
+    <div class="top-bar">
+      <h2 style="margin:0;">Expense Tracker</h2>
+     <div style="display:flex; gap:10px;">
+      <select id="yearSelector" onchange="changeYear()"
+        style="padding:8px 10px;border-radius:6px;border:1px solid #aaa;font-weight:bold;">
+</select>
+  <button class="save-btn" onclick="saveMultipleExpenses()">Save</button>
+  <button class="undo-btn" onclick="undoLastAction()">Undo</button>
+
+  <button style="background:red;color:white;font-weight:bold;border:none;
+               padding:8px 12px;border-radius:6px;cursor:pointer;"
+        onclick="resetAllData()">
+  Reset All
+</button>
+
+<button style="background:#444;color:white;font-weight:bold;border:none;
+               padding:8px 12px;border-radius:6px;cursor:pointer;"
+        onclick="exportData()">
+  Export
+</button>
+
+<button style="background:#444;color:white;font-weight:bold;border:none;
+               padding:8px 12px;border-radius:6px;cursor:pointer;"
+        onclick="document.getElementById('importFile').click()">
+  Import
+</button>
+
+<input type="file" id="importFile" accept=".json" style="display:none"
+       onchange="importData(event)">
+     </div>
+    </div>
+
+    <div id="calendar"></div>
+  </div>
+
+  <div class="panel">
+    <h3 id="selectedDateTitle">Select a Day</h3>
+
+    <div class="input-grid" id="multiEntryInputs"></div>
+
+    <h3 style="margin-top:20px;">Saved Expenses</h3>
+    <table class="expense-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Amount (₹)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="expenseList"></tbody>
+    </table>
+
+    <div class="day-total" id="dayTotal"></div>
+    <div class="year-total" id="yearTotal"></div>
+  </div>
+
+
+  <!-- GRAPH MODAL -->
+  <div class="modal" id="graphModal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeGraph()">✖</span>
+      <h2 id="graphTitle"></h2>
+
+      <div class="graph-toggle">
+        <button id="btnMonth" class="toggle-active" onclick="showMonthGraph()">Current Month</button>
+        <button id="btnAll" class="toggle-inactive" onclick="showAllMonthsGraph()">All Months</button>
+      </div>
+
+      <canvas id="monthChart"></canvas>
+    </div>
+  </div>
+
+
+  <script>
+    let year = parseInt(localStorage.getItem("selectedYear")) || new Date().getFullYear();
+    const calendarDiv = document.getElementById("calendar");
+    let selectedDateKey = null;
+
+    let chartInstance = null;
+    let currentGraphMonth = null;
+
+    let undoStack = [];
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    function getStorageData() {
+      return JSON.parse(localStorage.getItem("expenseCalendarData")) || {};
+    }
+
+    function saveStorageData(data) {
+      localStorage.setItem("expenseCalendarData", JSON.stringify(data));
+    }
+
+    function getSavedItemNames() {
+      const data = getStorageData();
+      let items = new Set();
+
+      for (let key in data) {
+        data[key].forEach(exp => items.add(exp.name));
+      }
+
+      return Array.from(items);
+    }
+
+    function pushUndoState() {
+      const data = getStorageData();
+      undoStack.push(JSON.stringify(data));
+      if (undoStack.length > 20) undoStack.shift();
+    }
+
+    function undoLastAction() {
+      if (undoStack.length === 0) {
+        alert("Nothing to undo!");
+        return;
+      }
+
+      const prevState = undoStack.pop();
+      localStorage.setItem("expenseCalendarData", prevState);
+
+      renderExpenses();
+      generateCalendar();
+      alert("Undo successful!");
+    }
+function resetAllData() {
+  if (confirm("Are you sure you want to delete ALL expense data?")) {
+    pushUndoState(); // keeps undo backup
+    localStorage.removeItem("expenseCalendarData");
+
+    alert("All data deleted successfully!");
+
+    selectedDateKey = null;
+    generateCalendar();
+    renderExpenses();
+    updateYearTotal();
+  }
+}
+function loadYearSelector() {
+  const yearSelector = document.getElementById("yearSelector");
+  yearSelector.innerHTML = "";
+
+  // year range (you can change this later)
+  for (let y = year - 3; y <= year + 3; y++) {
+    const option = document.createElement("option");
+    option.value = y;
+    option.textContent = y;
+
+    if (y === year) option.selected = true;
+
+    yearSelector.appendChild(option);
+  }
+}
+
+function changeYear() {
+  year = parseInt(document.getElementById("yearSelector").value);
+
+  localStorage.setItem("selectedYear", year);
+
+  selectedDateKey = null;
+
+  generateCalendar();
+  renderExpenses();
+  updateYearTotal();
+}
+    function getDayTotal(dateKey) {
+      const data = getStorageData();
+      const expenses = data[dateKey] || [];
+      return expenses.reduce((sum, exp) => sum + exp.value, 0);
+    }
+
+    function getMonthTotal(month) {
+      const data = getStorageData();
+      let total = 0;
+
+      for (let key in data) {
+        const parts = key.split("-");
+        const keyMonth = parseInt(parts[1]) - 1;
+
+        if (keyMonth === month) {
+          data[key].forEach(exp => total += exp.value);
+        }
+      }
+      return total;
+    }
+
+    function updateYearTotal() {
+      const data = getStorageData();
+      let total = 0;
+
+      for (let key in data) {
+        data[key].forEach(exp => total += exp.value);
+      }
+
+      document.getElementById("yearTotal").textContent = `Year Total: ₹${total}`;
+    }
+
+    function generateCalendar() {
+      calendarDiv.innerHTML = `<h1>Year ${year}</h1>`;
+
+      for (let month = 0; month < 12; month++) {
+        const monthDiv = document.createElement("div");
+        monthDiv.className = "month";
+
+        const monthTotal = getMonthTotal(month);
+
+        monthDiv.innerHTML = `
+          <div class="month-header">
+            <h2>${monthNames[month]}</h2>
+
+            <div class="month-header-right">
+              <button class="graph-btn" onclick="openGraph(${month})">📊 Graph</button>
+              <div class="month-total">Total: ₹${monthTotal}</div>
+            </div>
+          </div>
+
+          <div class="days-grid" id="month-${month}"></div>
+        `;
+
+        calendarDiv.appendChild(monthDiv);
+
+        const daysGrid = document.getElementById(`month-${month}`);
+
+        dayNames.forEach(day => {
+          const dayNameDiv = document.createElement("div");
+          dayNameDiv.className = "day-name";
+          dayNameDiv.textContent = day;
+          daysGrid.appendChild(dayNameDiv);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+          const emptyDiv = document.createElement("div");
+          emptyDiv.className = "day empty";
+          daysGrid.appendChild(emptyDiv);
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dayDiv = document.createElement("div");
+          dayDiv.className = "day";
+          dayDiv.textContent = day;
+
+          const dateKey = `${year}-${month + 1}-${day}`;
+          const total = getDayTotal(dateKey);
+
+          if (total > 0) {
+            dayDiv.classList.add("marked");
+
+            const totalDiv = document.createElement("div");
+            totalDiv.className = "day-total-inside";
+            totalDiv.textContent = `₹${total}`;
+            dayDiv.appendChild(totalDiv);
+          }
+
+          dayDiv.onclick = () => selectDay(dateKey, dayDiv);
+          daysGrid.appendChild(dayDiv);
+        }
+      }
+
+      updateYearTotal();
+    }
+
+    function selectDay(dateKey, dayDiv) {
+      document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+      dayDiv.classList.add("selected");
+
+      selectedDateKey = dateKey;
+      document.getElementById("selectedDateTitle").textContent = `Expenses: ${dateKey}`;
+
+      generateMultiInputRows();
+      renderExpenses();
+    }
+
+    function generateMultiInputRows() {
+      const container = document.getElementById("multiEntryInputs");
+      container.innerHTML = "";
+
+      const savedItems = getSavedItemNames();
+
+      // 6 rows by default
+      for (let i = 0; i < 6; i++) {
+        const itemInput = document.createElement("input");
+        itemInput.setAttribute("list", "itemsList");
+        itemInput.placeholder = "Item";
+
+        const valueInput = document.createElement("input");
+        valueInput.type = "number";
+        valueInput.placeholder = "₹";
+
+        container.appendChild(itemInput);
+        container.appendChild(valueInput);
+      }
+
+      // datalist dropdown
+      let datalist = document.getElementById("itemsList");
+      if (datalist) datalist.remove();
+
+      datalist = document.createElement("datalist");
+      datalist.id = "itemsList";
+
+      savedItems.forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        datalist.appendChild(option);
+      });
+
+      document.body.appendChild(datalist);
+    }
+
+    function saveMultipleExpenses() {
+      if (!selectedDateKey) {
+        alert("Please select a date first!");
+        return;
+      }
+
+      const container = document.getElementById("multiEntryInputs");
+      const inputs = container.querySelectorAll("input");
+
+      let newEntries = [];
+
+      for (let i = 0; i < inputs.length; i += 2) {
+        const name = inputs[i].value.trim();
+        const value = parseFloat(inputs[i + 1].value);
+
+        if (name !== "" && !isNaN(value) && value > 0) {
+          newEntries.push({ name, value });
+        }
+      }
+
+      if (newEntries.length === 0) {
+        alert("No valid entries to save!");
+        return;
+      }
+
+      pushUndoState();
+
+      const data = getStorageData();
+      if (!data[selectedDateKey]) data[selectedDateKey] = [];
+
+      data[selectedDateKey].push(...newEntries);
+      saveStorageData(data);
+
+      generateMultiInputRows();
+      renderExpenses();
+      generateCalendar();
+
+      alert("Saved successfully!");
+    }
+
+    function deleteExpense(index) {
+      pushUndoState();
+
+      const data = getStorageData();
+      data[selectedDateKey].splice(index, 1);
+
+      if (data[selectedDateKey].length === 0) {
+        delete data[selectedDateKey];
+      }
+
+      saveStorageData(data);
+
+      renderExpenses();
+      generateCalendar();
+    }
+
+    function renderExpenses() {
+      const expenseListDiv = document.getElementById("expenseList");
+      expenseListDiv.innerHTML = "";
+
+      const data = getStorageData();
+      const expenses = data[selectedDateKey] || [];
+
+      let total = 0;
+
+      expenses.forEach((exp, index) => {
+        total += exp.value;
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${exp.name}</td>
+          <td>₹${exp.value}</td>
+          <td><button class="delete-btn" onclick="deleteExpense(${index})">X</button></td>
+        `;
+
+        expenseListDiv.appendChild(row);
+      });
+
+      document.getElementById("dayTotal").textContent =
+        expenses.length > 0 ? `Day Total: ₹${total}` : "";
+
+      updateYearTotal();
+    }
+function exportData() {
+  const data = localStorage.getItem("expenseCalendarData") || "{}";
+
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "expense_backup.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const importedData = JSON.parse(e.target.result);
+
+      pushUndoState(); // keep undo backup
+      localStorage.setItem("expenseCalendarData", JSON.stringify(importedData));
+
+      alert("Data imported successfully!");
+
+      generateCalendar();
+      renderExpenses();
+      updateYearTotal();
+    } catch (err) {
+      alert("Invalid JSON file. Import failed!");
+    }
+  };
+
+  reader.readAsText(file);
+}
+    /* GRAPH FUNCTIONS */
+    function openGraph(month) {
+      currentGraphMonth = month;
+
+      document.getElementById("graphModal").style.display = "flex";
+      document.getElementById("graphTitle").textContent =
+        `${monthNames[month]} - Expenses vs Days (Line Chart)`;
+
+      showMonthGraph();
+    }
+
+    function showMonthGraph() {
+      document.getElementById("btnMonth").className = "toggle-active";
+      document.getElementById("btnAll").className = "toggle-inactive";
+
+      const month = currentGraphMonth;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let labels = [];
+      let values = [];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const key = `${year}-${month + 1}-${day}`;
+        labels.push(day.toString());
+        values.push(getDayTotal(key));
+      }
+
+      const ctx = document.getElementById("monthChart").getContext("2d");
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `${monthNames[month]} Expense (₹)`,
+            data: values,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function showAllMonthsGraph() {
+      document.getElementById("btnAll").className = "toggle-active";
+      document.getElementById("btnMonth").className = "toggle-inactive";
+
+      const ctx = document.getElementById("monthChart").getContext("2d");
+
+      const labels = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+      let datasets = [];
+
+      for (let month = 0; month < 12; month++) {
+        let values = [];
+
+        for (let day = 1; day <= 31; day++) {
+          const key = `${year}-${month + 1}-${day}`;
+
+          if (day <= new Date(year, month + 1, 0).getDate()) {
+            values.push(getDayTotal(key));
+          } else {
+            values.push(null); // no day exists
+          }
+        }
+
+        datasets.push({
+          label: monthNames[month],
+          data: values,
+          tension: 0.3
+        });
+      }
+
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function closeGraph() {
+      document.getElementById("graphModal").style.display = "none";
+    }
+
+  loadYearSelector();
+  generateCalendar();
+</script>
+
+</body>
+</html>
