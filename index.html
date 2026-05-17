@@ -371,8 +371,16 @@
       <h2 id="graphTitle"></h2>
 
       <div class="graph-toggle">
-        <button id="btnMonth" class="toggle-active" onclick="showMonthGraph()">Current Month</button>
-        <button id="btnAll" class="toggle-inactive" onclick="showAllMonthsGraph()">All Months</button>
+  <button id="btnMonth" class="toggle-active" onclick="showMonthGraph()">Current Month</button>
+  <button id="btnAll" class="toggle-inactive" onclick="showAllMonthsGraph()">All Months</button>
+
+  <button id="btnMonthlyTotal" class="toggle-inactive" onclick="showMonthlyTotalGraph()">
+    Monthly Total
+  </button>
+
+  <select id="itemSelector" style="padding:8px;border-radius:6px;border:1px solid #aaa;">
+    <option value="ALL">All Items</option>
+  </select>
       </div>
 
       <canvas id="monthChart"></canvas>
@@ -744,15 +752,18 @@ function importData(event) {
   reader.readAsText(file);
 }
     /* GRAPH FUNCTIONS */
-    function openGraph(month) {
-      currentGraphMonth = month;
+ function openGraph(month) {
+  currentGraphMonth = month;
 
-      document.getElementById("graphModal").style.display = "flex";
-      document.getElementById("graphTitle").textContent =
-        `${monthNames[month]} - Expenses vs Days (Line Chart)`;
+  document.getElementById("graphModal").style.display = "flex";
 
-      showMonthGraph();
-    }
+  loadItemSelector(); // ✅ load items into dropdown
+
+  document.getElementById("graphTitle").textContent =
+    `${monthNames[month]} - Expenses vs Days (Line Chart)`;
+
+  showMonthGraph();
+}
 
     function showMonthGraph() {
       document.getElementById("btnMonth").className = "toggle-active";
@@ -792,10 +803,49 @@ function importData(event) {
         }
       });
     }
+function showMonthlyTotalGraph() {
+  document.getElementById("btnMonthlyTotal").className = "toggle-active";
+  document.getElementById("btnMonth").className = "toggle-inactive";
+  document.getElementById("btnAll").className = "toggle-inactive";
 
-    function showAllMonthsGraph() {
-      document.getElementById("btnAll").className = "toggle-active";
-      document.getElementById("btnMonth").className = "toggle-inactive";
+  const selector = document.getElementById("itemSelector");
+  const selectedItem = selector.value;
+
+  let labels = [];
+  let values = [];
+
+  for (let m = 0; m < 12; m++) {
+    labels.push(monthNames[m]);
+    values.push(getMonthTotalByItem(m, selectedItem));
+  }
+
+  const ctx = document.getElementById("monthChart").getContext("2d");
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: selectedItem === "ALL"
+          ? "Monthly Total Expense (₹)"
+          : `Monthly Total: ${selectedItem} (₹)`,
+        data: values
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+function showAllMonthsGraph() {
+  document.getElementById("btnAll").className = "toggle-active";
+  document.getElementById("btnMonth").className = "toggle-inactive";
+  document.getElementById("btnMonthlyTotal").className = "toggle-inactive";
 
       const ctx = document.getElementById("monthChart").getContext("2d");
 
@@ -838,13 +888,48 @@ function importData(event) {
         }
       });
     }
+function getMonthTotalByItem(month, itemName) {
+  const data = getStorageData();
+  let total = 0;
 
+  for (let key in data) {
+    const parts = key.split("-");
+    const keyMonth = parseInt(parts[1]) - 1;
+
+    if (keyMonth === month) {
+      data[key].forEach(exp => {
+        if (itemName === "ALL" || exp.name === itemName) {
+          total += exp.value;
+        }
+      });
+    }
+  }
+
+  return total;
+}
+
+function loadItemSelector() {
+  const selector = document.getElementById("itemSelector");
+  selector.innerHTML = `<option value="ALL">All Items</option>`;
+
+  const items = getSavedItemNames();
+
+  items.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item;
+    opt.textContent = item;
+    selector.appendChild(opt);
+  });
+}
     function closeGraph() {
       document.getElementById("graphModal").style.display = "none";
     }
 
   loadYearSelector();
   generateCalendar();
+document.getElementById("itemSelector").addEventListener("change", function () {
+  showMonthlyTotalGraph();
+});
 </script>
 
 </body>
